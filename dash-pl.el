@@ -1,4 +1,36 @@
+;; -*- lexical-binding: t;
 (require 'dash)
+
+;; posunut key na koniec, alebo ako vymysliet varianty kde bude nested structure.
+;; (-pl-get :foo plist default)
+;; (-pl-get '(:foo :bar) plist default)
+
+(defun -pl-each-while (plist pred fun)
+  "Call FUN for each element of PLIST until PRED is non-nil.
+
+Both FUN and PRED are functions taking two arguments: key and
+value."
+  (-when-let* ((k (car plist))
+               (v (cadr plist)))
+    (while (and plist (funcall pred k v))
+      (funcall fun k v)
+      (setq plist (cddr plist))
+      (setq k (car plist))
+      (setq v (cadr plist)))))
+
+(defun -pl-each (plist fun)
+  "Call FUN for each element of PLIST.
+
+FUN is function taking two arguments: key and value."
+  (-pl-each-while plist (lambda (_ _) t) fun))
+
+(defun -pl-make (&rest values)
+  "Return a new plist containing key value pairs VALUES.
+
+The elements in VALUES should have a form (KEY VALUE)
+
+Type: [(k a)] -> Plist k a"
+  )
 
 (defun -pl-size (plist)
   "Return the number of elements in the PLIST.
@@ -6,100 +38,133 @@
 Type: Plist k a -> Int"
   )
 
-(defun -pl-null (plist)
+(defun -pl-null-p (plist)
   "Return non-nil if the PLIST is empty.
 
 Type: Plist k a -> Bool"
   )
 
-(defun -pl-get (key plist &optional default)
-  "Return the value at KEY in PLIST.
+(defalias '-pl-null? '-pl-null-p)
 
-Return nil if no such element is found or DEFAULT if this is
-supplied.
+(defun -pl-get (plist key)
+  "Return the value in PLIST at KEY.
+
+Return nil if no such element is found.
+
+Keys are compared using `equal'.
 
 Warning: this function might return nil even if the key is
 present in the situation when the value for this key is nil.  Use
 `-pl-member' to test if the key is in the map or `-pl-lookup' to
 retrive the (key . value) pair safely.
 
-Type: k -> Plist k a -> a"
+Type: Plist k a -> k -> a"
   )
 
-(defun -pl-member-by (comp key plist)
+(defun -pl-member-by (plist equiv key)
   "Return non-nil if PLIST contains KEY.
 
-The keys are compared using COMP, which should return non-nil if
+The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
-Type: (k -> k -> Bool) -> k -> Plist k a -> Bool"
+Type: Plist k a -> (k -> k -> Bool) -> k -> Bool"
   )
 
-(defun --pl-member-by (form plist key)
-  "Anaphoric version of `-pl-member-by'."
-  )
-
-(defun -pl-member (key plist)
+(defun -pl-member (plist key)
   "Return non-nil if PLIST contains KEY.
 
 The keys are compared using `equal'.
 
-Type: k -> Plist k a -> Bool"
+Type: Plist k a -> k -> Bool"
   )
 
-(defun -pl-lookup-by (comp key plist &optional default)
+(defun -pl-lookup-by (plist equiv key)
   "Find the value at KEY in PLIST.
 
 Return (k . a) if the key is found, or nil otherwise.
 
-If DEFAULT is supplied, return this instead of nil if key is not
-found.
-
-The keys are compared using COMP, which should return non-nil if
+The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
-Type: (k -> k -> Bool) -> k -> Plist k a -> Maybe (k . a)"
+Type: Plist k a -> (k -> k -> Bool) -> k -> Maybe (k . a)"
   )
 
-(defun -pl-lookup (key plist &optional default)
+(defun -pl-lookup (plist key)
   "Find the value at KEY in PLIST.
 
 Return (k . a) if the key is found, or nil otherwise.
-
-If DEFAULT is supplied, return this instead of nil if key is not
-found.
 
 The keys are compared using `equal'.
 
-Type: k -> Plist k a -> Maybe (k . a)"
+Type: Plist k a -> k -> Maybe (k . a)"
   )
 
-(defun -pl-insert-with-by (fun comp key value plist)
+(defun -pl-insert-withkey-by (plist fun equiv value key)
+  "Insert with a function, combining key, new value and old value.
+
+Insert the pair (KEY, VALUE) into MAP if key does not exist in
+the map.  If the key does exist, insert the pair (KEY, (FUN KEY VALUE
+old-value)).
+
+The keys are compared using EQUIV, which should return non-nil if
+keys are \"equal\" and nil otherwise.
+
+Type: Plist k a -> (k -> a -> a -> a) -> (k -> k -> Bool) -> a -> k -> Plist k a"
+  (let ((pl plist) r)
+    (-pl-each-while
+     plist
+     (lambda (k _)
+       (not (funcall equiv k key)))
+     (lambda (k v)
+       (push k r)
+       (push v r)
+       (setq pl (cddr pl))))
+    (push key r)
+    (if pl
+        (push (funcall fun key value (cadr pl)) r)
+      (push value r))
+    (-concat (nreverse r) (cddr pl))))
+
+(defun -pl-insert-with-by (plist fun equiv value key)
   "Insert with a function, combining new value and old value.
 
 Insert the pair (KEY, VALUE) into MAP if key does not exist in
 the map.  If the key does exist, insert the pair (KEY, (FUN VALUE
 old-value)).
 
-The keys are compared using COMP, which should return non-nil if
+The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
-Type: (a -> a -> a) -> (k -> k -> Bool) -> k -> a -> Plist k a -> Plist k a"
-  )
+Type: Plist k a -> (a -> a -> a) -> (k -> k -> Bool) -> a -> k -> Plist k a"
+  (-pl-insert-withkey-by plist
+                         (lambda (_ v old) (funcall fun v old))
+                         equiv value key))
 
-(defun -pl-insert-by (comp key value plist)
+(defun -pl-insert-by (plist equiv value key)
   "Insert a new KEY and VALUE in the MAP.
 
 If the key is already present in the map, the associated value is
 replaced with the supplied value.
 
-The keys are compared using COMP, which should return non-nil if
+The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
-Type: (k -> k -> Bool) -> k -> a -> Map k a -> Map k a"
-  )
+Type: Plist k a -> (k -> k -> Bool) -> a -> k -> Plist k a"
+  (-pl-insert-withkey-by plist (lambda (_ v _) v) equiv value key))
 
-(defun -pl-insert-with (fun key value plist)
+(defun -pl-insert-withkey (plist fun value key)
+  "Insert with a function, combining key, new value and old value.
+
+Insert the pair (KEY, VALUE) into MAP if key does not exist in
+the map.  If the key does exist, insert the pair (KEY, (FUN KEY VALUE
+old-value)).
+
+The keys are compared by `equal'.
+
+Type: Plist k a -> (a -> a -> a) -> a -> k -> Plist k a"
+  (-pl-insert-withkey-by plist fun 'equal value key))
+
+(defun -pl-insert-with (plist fun value key)
   "Insert with a function, combining new value and old value.
 
 Insert the pair (KEY, VALUE) into MAP if key does not exist in
@@ -108,10 +173,12 @@ old-value)).
 
 The keys are compared by `equal'.
 
-Type: (a -> a -> a) -> k -> a -> Plist k a -> Plist k a"
-  )
+Type: Plist k a -> (a -> a -> a) -> a -> k -> Plist k a"
+  (-pl-insert-withkey-by plist
+                         (lambda (_ v old) (funcall fun v old))
+                         'equal value key))
 
-(defun -pl-insert (key value plist)
+(defun -pl-insert (plist value key)
   "Insert a new KEY and VALUE in the MAP.
 
 If the key is already present in the map, the associated value is
@@ -119,22 +186,22 @@ replaced with the supplied value.
 
 The keys are compared by `equal'.
 
-Type: k -> a -> Map k a -> Map k a"
-  )
+Type: Map k a -> a -> k -> Map k a"
+  (-pl-insert-withkey-by plist (lambda (_ v _) v) 'equal value key))
 
-(defun -pl-delete-by (comp key plist)
+(defun -pl-delete-by (plist equiv key)
   "Delete KEY and its value from PLIST.
 
 When KEY is not a member of PLIST, the original PLIST is
 returned unmodified.
 
-The keys are compared using COMP, which should return non-nil if
+The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
-Type: (k -> k -> Bool) -> k -> Plist k a -> Plist k a"
+Type: Plist k a -> (k -> k -> Bool) -> k -> Plist k a"
   )
 
-(defun -pl-delete (key plist)
+(defun -pl-delete (plist key)
   "Delete KEY and its value from PLIST.
 
 When KEY is not a member of PLIST, the original PLIST is
@@ -142,22 +209,45 @@ returned unmodified.
 
 The keys are compared by `equal'.
 
-Type: k -> Plist k a -> Plist k a"
+Type: Plist k a -> k -> Plist k a"
   )
 
-(defun -pl-adjust-by (comp fun key plist)
+(defun -pl-adjust-withkey-by (plist fun equiv key)
+  "Update value at KEY with (FUN KEY value).
+
+When KEY is not a member of the PLIST, the original PLIST is
+returned unmodified.
+
+The keys are compared using EQUIV, which should return non-nil if
+keys are \"equal\" and nil otherwise.
+
+Type: Plist k a -> (k -> a -> a) -> (k -> k -> Bool) -> k -> Plist k a"
+  )
+
+(defun -pl-adjust-by (plist fun equiv key)
   "Update value at KEY with (FUN value).
 
 When KEY is not a member of the PLIST, the original PLIST is
 returned unmodified.
 
-The keys are compared using COMP, which should return non-nil if
+The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
-Type: (k -> k -> Bool) -> (a -> a) -> k -> Plist k a -> Plist k a"
+Type: Plist k a -> (a -> a) -> (k -> k -> Bool) -> k -> Plist k a"
   )
 
-(defun -pl-adjust (fun key plist)
+(defun -pl-adjust-withkey (plist fun key)
+  "Update value at KEY with (FUN KEY value).
+
+When KEY is not a member of the PLIST, the original PLIST is
+returned unmodified.
+
+The keys are compared by `equal'.
+
+Type: Plist k a -> (k -> a -> a) -> k -> Plist k a"
+  )
+
+(defun -pl-adjust (plist fun key)
   "Update value at KEY with (FUN value).
 
 When KEY is not a member of the PLIST, the original PLIST is
@@ -165,7 +255,7 @@ returned unmodified.
 
 The keys are compared by `equal'.
 
-Type: (a -> a) -> k -> Plist k a -> Plist k a"
+Type: Plist k a -> (a -> a) -> k -> Plist k a"
   )
 
 ;; TODO:

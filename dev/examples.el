@@ -3,59 +3,58 @@
 (require 'dash-pt)
 
 (def-example-group "List to list" nil
+  (defexamples -pl-make
+    (-pl-make (1 2) (3 4) (5 6)) => '(1 2 3 4 5 6)
+    (-pl-make (1 (1+ 1)) (3 (* 2 2)) (5 6)) => '(1 2 3 4 5 6)
+    )
+
   (defexamples -pl-size
     (-pl-size nil) => 0
     (-pl-size '(a b c d)) => 2
     )
 
-  (defexamples -pl-null
-    (-pl-null nil) => t
-
-    (-pl-null '(a b c d)) => nil
+  (defexamples -pl-null-p
+    (-pl-null-p nil) => t
+    (-pl-null-p '(a b c d)) => nil
     )
 
   (defexamples -pl-get
     (-pl-get nil 'a) => nil
-
     (-pl-get '(a b c d) 'a) => 'b
     (-pl-get '(a b c nil) 'c) => nil
     (-pl-get '(a b c nil) 'e) => nil
     )
 
   (defexamples -pl-member-by
-    (-pl-member-by 'eq nil 'a) => nil
-    (-pl-member-by 'string= nil 'a) => nil
-    (-pl-member-by 'string= nil nil) => nil
-    (-pl-member-by 'eq '(nil b c d) nil) => t
-    (-pl-member-by 'equal '(nil b c d) nil) => t
+    (-pl-member-by nil 'eq 'a) => nil
+    (-pl-member-by nil 'string= 'a) => nil
+    (-pl-member-by nil 'string= nil) => nil
+    (-pl-member-by '(nil b c d) 'eq nil) => t
+    (-pl-member-by '(nil b c d) 'equal nil) => t
+    (-pl-member-by '(a b c d) 'eq 'a) => t
+    (-pl-member-by '(a b c nil) 'eq 'c) => t
+    (-pl-member-by '(a b c nil) 'eq 'e) => nil
+    (-pl-member-by '(a b c d) 'eq (make-symbol "a")) => nil
+    (-pl-member-by '("a" 1 "b" 2) 'eq "a") => nil
+    (-pl-member-by '("a" 1 "b" 2) 'string= "a") => t
 
-    (-pl-member-by 'eq '(a b c d) 'a) => t
-    (-pl-member-by 'eq '(a b c nil) 'c) => t
-    (-pl-member-by 'eq '(a b c nil) 'e) => nil
-    (-pl-member-by 'eq '(a b c d) (make-symbol "a")) => nil
-    (-pl-member-by 'eq '("a" 1 "b" 2) "a") => nil
-    (-pl-member-by 'string= '("a" 1 "b" 2) "a") => t
-
-    (--pl-member-by (eq new old) nil 'a) => nil
-    (--pl-member-by (string= new old) nil 'a) => nil
-    (--pl-member-by (string= new old) nil nil) => nil
-    (--pl-member-by (eq new old) '(nil b c d) nil) => t
-    (--pl-member-by (equal new old) '(nil b c d) nil) => t
-
-
-    (--pl-member-by (eq new old) '(a b c d) 'a) => t
-    (--pl-member-by (eq new old) '(a b c nil) 'c) => t
-    (--pl-member-by (eq new old) '(a b c nil) 'e) => nil
-    (--pl-member-by (eq new old) '(a b c d) (make-symbol "a")) => nil
-    (--pl-member-by (eq new old) '("a" 1 "b" 2) "a") => nil
-    (--pl-member-by (string= new old) '("a" 1 "b" 2) "a") => t
+    ;; (--pl-member-by (eq new old) nil 'a) => nil
+    ;; (--pl-member-by (string= new old) nil 'a) => nil
+    ;; (--pl-member-by (string= new old) nil nil) => nil
+    ;; (--pl-member-by (eq new old) '(nil b c d) nil) => t
+    ;; (--pl-member-by (equal new old) '(nil b c d) nil) => t
+    ;; (--pl-member-by (eq new old) '(a b c d) 'a) => t
+    ;; (--pl-member-by (eq new old) '(a b c nil) 'c) => t
+    ;; (--pl-member-by (eq new old) '(a b c nil) 'e) => nil
+    ;; (--pl-member-by (eq new old) '(a b c d) (make-symbol "a")) => nil
+    ;; (--pl-member-by (eq new old) '("a" 1 "b" 2) "a") => nil
+    ;; (--pl-member-by (string= new old) '("a" 1 "b" 2) "a") => t
     )
 
   (defexamples -pl-member
     (-pl-member nil 'a) => nil
     (-pl-member nil nil) => nil
     (-pl-member '(nil b c d) nil) => t
-
     (-pl-member '(a b c d) 'a) => t
     (-pl-member '(a b c nil) 'c) => t
     (-pl-member '(a b c nil) 'e) => nil
@@ -63,43 +62,84 @@
     (-pl-member '("a" 1 "b" 2) "a") => t
     )
 
+  (defexamples -pl-lookup-by
+    (-pl-lookup-by nil 'eq 'a) => nil
+    (-pl-lookup-by nil 'eq nil) => nil
+    (-pl-lookup-by '(nil b c d) 'eq nil) => '(nil . b)
+    (-pl-lookup-by '(nil b c d) 'equal nil) => '(nil . b)
+    (-pl-lookup-by '(nil nil c d) 'eq nil) => '(nil . nil)
+    (-pl-lookup-by '(a b c d) 'eq 'a) => '(a . b)
+    (-pl-lookup-by '(a b c d) 'eq (make-symbol "a")) => nil
+    (-pl-lookup-by '(a b c d) 'equal 'a) => '(a . b)
+    (-pl-lookup-by '(a b c d) 'equal (make-symbol "a")) => '(a . b)
+    (-pl-lookup-by '(a b c nil) 'equal 'c) => '(c . nil)
+    (-pl-lookup-by '(a b c nil) 'eq 'e) => nil
+    )
+
   (defexamples -pl-lookup
     (-pl-lookup nil 'a) => nil
     (-pl-lookup nil nil) => nil
     (-pl-lookup '(nil b c d) nil) => '(nil . b)
     (-pl-lookup '(nil nil c d) nil) => '(nil . nil)
-
     (-pl-lookup '(a b c d) 'a) => '(a . b)
     (-pl-lookup '(a b c nil) 'c) => '(c . nil)
     (-pl-lookup '(a b c nil) 'e) => nil
     )
 
-  (defexamples -pl-lookup-def
-    (-pl-lookup-def 'x nil 'a) => '(a . x)
-    (-pl-lookup-def 'x nil nil) => '(nil . x)
-    (-pl-lookup-def 'x '(nil b c d) nil) => '(nil . b)
-    (-pl-lookup-def 'x '(nil nil c d) nil) => '(nil . nil)
+  (defexamples -pl-insert-withkey-by
+    (-pl-insert-withkey-by nil (lambda (k v old) (+ k v old)) 'equal 3 1) => '(1 3)
 
-    (-pl-lookup-def 'x '(a b c d) 'a) => '(a . b)
-    (-pl-lookup-def 'x '(a b c nil) 'c) => '(c . nil)
-    (-pl-lookup-def 'x '(a b c nil) 'e) => '(e . x)
+    (-pl-insert-withkey-by '(1 2 3 4 5 6) (lambda (k v old) (+ k v old)) 'equal 3 1) => '(1 6 3 4 5 6)
+    (-pl-insert-withkey-by '(1 2 3 4 5 6) (lambda (k v old) (+ k v old)) 'equal 3 3) => '(1 2 3 10 5 6)
+    (-pl-insert-withkey-by '(1 2 3 4 5 6) (lambda (k v old) (+ k v old)) 'equal 3 5) => '(1 2 3 4 5 14)
+    (-pl-insert-withkey-by '(1 2 3 4 5 6) (lambda (k v old) (+ k v old)) 'equal 3 7) => '(1 2 3 4 5 6 7 3)
+    (let ((r '(1 2 3 4 5 6))) (-pl-insert-withkey-by r (lambda (k v old) (+ k v old)) 'equal 3 3) r) => '(1 2 3 4 5 6)
+    )
+
+  (defexamples -pl-insert-with-by
+    (-pl-insert-with-by '(1 2 3 4 5 6) (lambda (v old) (+ v old)) 'equal 3 1) => '(1 5 3 4 5 6)
+    (-pl-insert-with-by '(1 2 3 4 5 6) (lambda (v old) (+ v old)) 'equal 3 3) => '(1 2 3 7 5 6)
+    (-pl-insert-with-by '(1 2 3 4 5 6) (lambda (v old) (+ v old)) 'equal 3 5) => '(1 2 3 4 5 9)
+    )
+
+  (defexamples -pl-insert-by
+    )
+
+  (defexamples -pl-insert-withkey
     )
 
   (defexamples -pl-insert-with
     (let (r) (-pl-insert-with '+ 1 2 r)) => '(1 2)
-
-    (let ((r '(1 2 3 4))) (-pl-insert-with '+ 3 5 r)) => '(1 2 3 9)
-    (let ((r '(1 2 3 4))) (-pl-insert-with '+ 5 6 r)) => '(1 2 3 4 5 6)
-    (let ((r '(1 2 3 4))) (-pl-insert-with '+ 3 5 r) r) => '(1 2 3 4)
-    (let ((r '(1 2 3 4))) (-pl-insert-with '+ 5 6 r) r) => '(1 2 3 4)
+    (let ((r '(1 2 3 4))) (-pl-insert-with r '+ 5 3)) => '(1 2 3 9)
+    (let ((r '(1 2 3 4))) (-pl-insert-with r '+ 6 5)) => '(1 2 3 4 5 6)
+    (let ((r '(1 2 3 4))) (-pl-insert-with r '+ 5 3) r) => '(1 2 3 4)
+    (let ((r '(1 2 3 4))) (-pl-insert-with r '+ 6 5) r) => '(1 2 3 4)
     )
 
   (defexamples -pl-insert
-    (let (r) (-pl-insert 1 2 r)) => '(1 2)
+    (let (r) (-pl-insert r 2 1)) => '(1 2)
 
-    (let ((r '(1 2 3 4))) (-pl-insert 3 5 r)) => '(1 2 3 5)
-    (let ((r '(1 2 3 4))) (-pl-insert 5 6 r)) => '(1 2 3 4 5 6)
-    (let ((r '(1 2 3 4))) (-pl-insert 3 5 r) r) => '(1 2 3 4)
-    (let ((r '(1 2 3 4))) (-pl-insert 5 6 r) r) => '(1 2 3 4)
+    (let ((r '(1 2 3 4))) (-pl-insert r 5 3)) => '(1 2 3 5)
+    (let ((r '(1 2 3 4))) (-pl-insert r 6 5)) => '(1 2 3 4 5 6)
+    (let ((r '(1 2 3 4))) (-pl-insert r 5 3) r) => '(1 2 3 4)
+    (let ((r '(1 2 3 4))) (-pl-insert r 6 5) r) => '(1 2 3 4)
+    )
+
+  (defexamples -pl-delete-by
+    )
+
+  (defexamples -pl-delete
+    )
+
+  (defexamples -pl-adjust-withkey-by
+    )
+
+  (defexamples -pl-adjust-by
+    )
+
+  (defexamples -pl-adjust-withkey
+    )
+
+  (defexamples -pl-adjust
     )
   )
