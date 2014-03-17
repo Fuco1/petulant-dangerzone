@@ -125,7 +125,45 @@ retrive the (key . value) pair safely.
 Type: Plist k a -> k -> a"
   (apply '-pl-get-by plist 'equal key keys))
 
-;; TODO we can unify this and update into one function
+(defun -pl-alter-by (plist fun equiv key &rest keys)
+  "Update value at KEY.
+
+In the following \"x\" is nil if no value is present in PLIST for
+KEY, or (list old-value) if there is some value.
+
+\(FUN x) should return nil if the key-value pair should
+be removed or a list whose `car' will be the new value for KEY.
+
+If x is nil and (FUN x) returns nil, plist equal with original is
+returned.
+
+The keys are compared using EQUIV, which should return non-nil if
+keys are \"equal\" and nil otherwise.
+
+Type: Plist k a -> (Maybe a -> Maybe a) -> (k -> k -> Bool) -> k -> Plist k a"
+  (let ((pl plist) r)
+    (-pl-each-while
+     plist
+     (lambda (k _)
+       (not (funcall equiv k key)))
+     (lambda (k v)
+       (push k r)
+       (push v r)
+       (setq pl (cddr pl))))
+    (let* ((orig-val (cadr pl))
+           (orig-val-maybe (when pl (list orig-val))))
+      (if keys
+          (progn
+            (push key r)
+            (push (or (apply '-pl-alter-by
+                             (when (listp orig-val) orig-val)
+                             fun equiv (car keys) (cdr keys))
+                      orig-val) r))
+        (-when-let (new-val (funcall fun orig-val-maybe))
+          (push key r)
+          (push (car new-val) r))))
+    (--if-let (cddr pl) (-concat (nreverse r) it) (nreverse r))))
+
 (defun -pl-insert-withkey-by (plist fun equiv value key &rest keys)
   "Insert with a function, combining key, new value and old value.
 
@@ -137,23 +175,12 @@ The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
 Type: Plist k a -> (k -> a -> a -> a) -> (k -> k -> Bool) -> a -> k -> Plist k a"
-  (let ((pl plist) r)
-    (-pl-each-while
-     plist
-     (lambda (k _)
-       (not (funcall equiv k key)))
-     (lambda (k v)
-       (push k r)
-       (push v r)
-       (setq pl (cddr pl))))
-    (push key r)
-    (if keys
-        (push (apply '-pl-insert-withkey-by (when (listp (cadr pl)) (cadr pl))
-                     fun equiv value (car keys) (cdr keys)) r)
-      (if pl
-          (push (funcall fun key value (cadr pl)) r)
-        (push value r)))
-    (--if-let (cddr pl) (-concat (nreverse r) it) (nreverse r))))
+  (apply '-pl-alter-by
+         plist
+         (lambda (x)
+           (if (not x) (list value)
+             (list (funcall fun key value (car x)))))
+         equiv key keys))
 
 (defun -pl-insert-with-by (plist fun equiv value key &rest keys)
   "Insert with a function, combining new value and old value.
@@ -228,33 +255,17 @@ from the map.
 Otherwise (FUN KEY value) should return a list and the value at
 key will be set to `car' of this list.
 
-When KEY is not a member of the PLIST, the original PLIST is
-returned unmodified.
+When KEY is not a member of the PLIST, plist equal with original
+is returned.
 
 The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
 Type: Plist k a -> (k -> a -> a) -> (k -> k -> Bool) -> k -> Plist k a"
-  (let ((pl plist) r)
-    (-pl-each-while
-     plist
-     (lambda (k _)
-       (not (funcall equiv k key)))
-     (lambda (k v)
-       (push k r)
-       (push v r)
-       (setq pl (cddr pl))))
-    (when pl
-      (if keys
-          (progn
-            (push key r)
-            (push (or (apply '-pl-update-withkey-by (when (listp (cadr pl)) (cadr pl))
-                             fun equiv (car keys) (cdr keys))
-                      (cadr pl)) r))
-        (-when-let (new-val (funcall fun key (cadr pl)))
-          (push key r)
-          (push (car new-val) r))))
-    (--if-let (cddr pl) (-concat (nreverse r) it) (nreverse r))))
+  (apply '-pl-alter-by
+         plist
+         (lambda (x) (when x (funcall fun key (car x))))
+         equiv key keys))
 
 (defun -pl-update-by (plist fun equiv key &rest keys)
   "Update value at KEY.
@@ -265,8 +276,8 @@ from the map.
 Otherwise (FUN value) should return a list and the value at
 key will be set to `car' of this list.
 
-When KEY is not a member of the PLIST, the original PLIST is
-returned unmodified.
+When KEY is not a member of the PLIST, plist equal with original
+is returned.
 
 The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
@@ -285,8 +296,8 @@ from the map.
 Otherwise (FUN KEY value) should return a list and the value at
 key will be set to `car' of this list.
 
-When KEY is not a member of the PLIST, the original PLIST is
-returned unmodified.
+When KEY is not a member of the PLIST, plist equal with original
+is returned.
 
 The keys are compared by `equal'.
 
@@ -304,8 +315,8 @@ from the map.
 Otherwise (FUN value) should return a list and the value at
 key will be set to `car' of this list.
 
-When KEY is not a member of the PLIST, the original PLIST is
-returned unmodified.
+When KEY is not a member of the PLIST, plist equal with original
+is returned.
 
 The keys are compared by `equal'.
 
@@ -340,8 +351,8 @@ Type: Plist k a -> k -> Plist k a"
 (defun -pl-adjust-withkey-by (plist fun equiv key &rest keys)
   "Update value at KEY with (FUN KEY value).
 
-When KEY is not a member of the PLIST, the original PLIST is
-returned unmodified.
+When KEY is not a member of the PLIST, plist equal with original
+is returned.
 
 The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
@@ -354,8 +365,8 @@ Type: Plist k a -> (k -> a -> a) -> (k -> k -> Bool) -> k -> Plist k a"
 (defun -pl-adjust-by (plist fun equiv key &rest keys)
   "Update value at KEY with (FUN value).
 
-When KEY is not a member of the PLIST, the original PLIST is
-returned unmodified.
+When KEY is not a member of the PLIST, plist equal with original
+is returned.
 
 The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
@@ -366,8 +377,8 @@ Type: Plist k a -> (a -> a) -> (k -> k -> Bool) -> k -> Plist k a"
 (defun -pl-adjust-withkey (plist fun key &rest keys)
   "Update value at KEY with (FUN KEY value).
 
-When KEY is not a member of the PLIST, the original PLIST is
-returned unmodified.
+When KEY is not a member of the PLIST, plist equal with original
+is returned.
 
 The keys are compared by `equal'.
 
@@ -377,8 +388,8 @@ Type: Plist k a -> (k -> a -> a) -> k -> Plist k a"
 (defun -pl-adjust (plist fun key &rest keys)
   "Update value at KEY with (FUN value).
 
-When KEY is not a member of the PLIST, the original PLIST is
-returned unmodified.
+When KEY is not a member of the PLIST, plist equal with original
+is returned.
 
 The keys are compared by `equal'.
 
