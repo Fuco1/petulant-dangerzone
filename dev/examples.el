@@ -123,6 +123,13 @@
     (let ((r '(1 2 3 4))) (-pl-insert r 6 5)) => '(1 2 3 4 5 6)
     (let ((r '(1 2 3 4))) (-pl-insert r 5 3) r) => '(1 2 3 4)
     (let ((r '(1 2 3 4))) (-pl-insert r 6 5) r) => '(1 2 3 4)
+
+    (-pl-insert '(1 2 3 4) "a" 3 :nested) => '(1 2 3 (:nested "a"))
+    (-pl-insert '(1 2 3 (:nested "a")) "b" 3 :another) => '(1 2 3 (:nested "a" :another "b"))
+    (-pl-insert '(1 2 3 (:nested "a" :another "b")) "c" 3 :nested) => '(1 2 3 (:nested "c" :another "b"))
+    (-pl-insert '(1 2 3 (:nested "c" :another "b")) "foo" 1) => '(1 "foo" 3 (:nested "c" :another "b"))
+    (-pl-insert '(1 2 3 4) "a" 3 :nested :even :more) => '(1 2 3 (:nested (:even (:more "a"))))
+
     )
 
   (defexamples -pl-delete-by

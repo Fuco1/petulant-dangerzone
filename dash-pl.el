@@ -99,7 +99,7 @@ The keys are compared using `equal'.
 Type: Plist k a -> k -> Maybe (k . a)"
   )
 
-(defun -pl-insert-withkey-by (plist fun equiv value key)
+(defun -pl-insert-withkey-by (plist fun equiv value key &rest keys)
   "Insert with a function, combining key, new value and old value.
 
 Insert the pair (KEY, VALUE) into MAP if key does not exist in
@@ -120,12 +120,15 @@ Type: Plist k a -> (k -> a -> a -> a) -> (k -> k -> Bool) -> a -> k -> Plist k a
        (push v r)
        (setq pl (cddr pl))))
     (push key r)
-    (if pl
-        (push (funcall fun key value (cadr pl)) r)
-      (push value r))
-    (-concat (nreverse r) (cddr pl))))
+    (if keys
+        (push (apply '-pl-insert-withkey-by (when (listp (cadr pl)) (cadr pl))
+                     fun equiv value (car keys) (cdr keys)) r)
+      (if pl
+          (push (funcall fun key value (cadr pl)) r)
+        (push value r)))
+    (--if-let (cddr pl) (-concat (nreverse r) it) (nreverse r))))
 
-(defun -pl-insert-with-by (plist fun equiv value key)
+(defun -pl-insert-with-by (plist fun equiv value key &rest keys)
   "Insert with a function, combining new value and old value.
 
 Insert the pair (KEY, VALUE) into MAP if key does not exist in
@@ -136,11 +139,11 @@ The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
 Type: Plist k a -> (a -> a -> a) -> (k -> k -> Bool) -> a -> k -> Plist k a"
-  (-pl-insert-withkey-by plist
-                         (lambda (_ v old) (funcall fun v old))
-                         equiv value key))
+  (apply '-pl-insert-withkey-by plist
+         (lambda (_ v old) (funcall fun v old))
+         equiv value key keys))
 
-(defun -pl-insert-by (plist equiv value key)
+(defun -pl-insert-by (plist equiv value key &rest keys)
   "Insert a new KEY and VALUE in the MAP.
 
 If the key is already present in the map, the associated value is
@@ -150,9 +153,9 @@ The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
 Type: Plist k a -> (k -> k -> Bool) -> a -> k -> Plist k a"
-  (-pl-insert-withkey-by plist (lambda (_ v _) v) equiv value key))
+  (apply '-pl-insert-withkey-by plist (lambda (_ v _) v) equiv value key keys))
 
-(defun -pl-insert-withkey (plist fun value key)
+(defun -pl-insert-withkey (plist fun value key &rest keys)
   "Insert with a function, combining key, new value and old value.
 
 Insert the pair (KEY, VALUE) into MAP if key does not exist in
@@ -162,9 +165,9 @@ old-value)).
 The keys are compared by `equal'.
 
 Type: Plist k a -> (a -> a -> a) -> a -> k -> Plist k a"
-  (-pl-insert-withkey-by plist fun 'equal value key))
+  (apply '-pl-insert-withkey-by plist fun 'equal value key keys))
 
-(defun -pl-insert-with (plist fun value key)
+(defun -pl-insert-with (plist fun value key &rest keys)
   "Insert with a function, combining new value and old value.
 
 Insert the pair (KEY, VALUE) into MAP if key does not exist in
@@ -174,11 +177,11 @@ old-value)).
 The keys are compared by `equal'.
 
 Type: Plist k a -> (a -> a -> a) -> a -> k -> Plist k a"
-  (-pl-insert-withkey-by plist
-                         (lambda (_ v old) (funcall fun v old))
-                         'equal value key))
+  (apply '-pl-insert-withkey-by plist
+         (lambda (_ v old) (funcall fun v old))
+         'equal value key keys))
 
-(defun -pl-insert (plist value key)
+(defun -pl-insert (plist value key &rest keys)
   "Insert a new KEY and VALUE in the MAP.
 
 If the key is already present in the map, the associated value is
@@ -187,7 +190,7 @@ replaced with the supplied value.
 The keys are compared by `equal'.
 
 Type: Map k a -> a -> k -> Map k a"
-  (-pl-insert-withkey-by plist (lambda (_ v _) v) 'equal value key))
+  (apply '-pl-insert-withkey-by plist (lambda (_ v _) v) 'equal value key keys))
 
 (defun -pl-delete-by (plist equiv key)
   "Delete KEY and its value from PLIST.
