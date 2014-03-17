@@ -1,7 +1,7 @@
 ;; -*- lexical-binding: t; -*-
 (require 'dash)
 
-;; posunut key na koniec, alebo ako vymysliet varianty kde bude nested structure.
+;; clavis ad finem movenda, vel inclusae structurae quemadmodum tractandae sint excogitandum.
 ;; (-pl-get :foo plist default)
 ;; (-pl-get '(:foo :bar) plist default)
 
