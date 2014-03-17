@@ -215,7 +215,7 @@ The keys are compared by `equal'.
 Type: Plist k a -> k -> Plist k a"
   )
 
-(defun -pl-adjust-withkey-by (plist fun equiv key)
+(defun -pl-adjust-withkey-by (plist fun equiv key &rest keys)
   "Update value at KEY with (FUN KEY value).
 
 When KEY is not a member of the PLIST, the original PLIST is
@@ -225,9 +225,25 @@ The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
 Type: Plist k a -> (k -> a -> a) -> (k -> k -> Bool) -> k -> Plist k a"
-  )
+  (let ((pl plist) r)
+    (-pl-each-while
+     plist
+     (lambda (k _)
+       (not (funcall equiv k key)))
+     (lambda (k v)
+       (push k r)
+       (push v r)
+       (setq pl (cddr pl))))
+    (when pl
+      (push key r)
+      (if keys
+          (push (or (apply '-pl-adjust-withkey-by (when (listp (cadr pl)) (cadr pl))
+                           fun equiv (car keys) (cdr keys))
+                    (cadr pl)) r)
+        (push (funcall fun key (cadr pl)) r)))
+    (--if-let (cddr pl) (-concat (nreverse r) it) (nreverse r))))
 
-(defun -pl-adjust-by (plist fun equiv key)
+(defun -pl-adjust-by (plist fun equiv key &rest keys)
   "Update value at KEY with (FUN value).
 
 When KEY is not a member of the PLIST, the original PLIST is
@@ -237,9 +253,9 @@ The keys are compared using EQUIV, which should return non-nil if
 keys are \"equal\" and nil otherwise.
 
 Type: Plist k a -> (a -> a) -> (k -> k -> Bool) -> k -> Plist k a"
-  )
+  (apply '-pl-adjust-withkey-by plist (lambda (_ v) (funcall fun v)) equiv key keys))
 
-(defun -pl-adjust-withkey (plist fun key)
+(defun -pl-adjust-withkey (plist fun key &rest keys)
   "Update value at KEY with (FUN KEY value).
 
 When KEY is not a member of the PLIST, the original PLIST is
@@ -248,9 +264,9 @@ returned unmodified.
 The keys are compared by `equal'.
 
 Type: Plist k a -> (k -> a -> a) -> k -> Plist k a"
-  )
+  (apply '-pl-adjust-withkey-by plist fun 'equal key keys))
 
-(defun -pl-adjust (plist fun key)
+(defun -pl-adjust (plist fun key &rest keys)
   "Update value at KEY with (FUN value).
 
 When KEY is not a member of the PLIST, the original PLIST is
@@ -259,7 +275,7 @@ returned unmodified.
 The keys are compared by `equal'.
 
 Type: Plist k a -> (a -> a) -> k -> Plist k a"
-  )
+  (apply '-pl-adjust-withkey-by plist (lambda (_ v) (funcall fun v)) 'equal key keys))
 
 ;; TODO:
 ;; add:

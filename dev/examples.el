@@ -18,11 +18,29 @@
     (-pl-null-p '(a b c d)) => nil
     )
 
-  (defexamples -pl-get
-    (-pl-get nil 'a) => nil
-    (-pl-get '(a b c d) 'a) => 'b
-    (-pl-get '(a b c nil) 'c) => nil
-    (-pl-get '(a b c nil) 'e) => nil
+  (defexamples -pl-lookup-by
+    (-pl-lookup-by nil 'eq 'a) => nil
+    (-pl-lookup-by nil 'eq nil) => nil
+    (-pl-lookup-by '(nil b c d) 'eq nil) => '(nil . b)
+    (-pl-lookup-by '(nil b c d) 'equal nil) => '(nil . b)
+    (-pl-lookup-by '(nil nil c d) 'eq nil) => '(nil . nil)
+    (-pl-lookup-by '(a b c d) 'eq 'a) => '(a . b)
+    (-pl-lookup-by '(a b c d) 'eq (make-symbol "a")) => nil
+    (-pl-lookup-by '(a b c d) 'equal 'a) => '(a . b)
+    (-pl-lookup-by '(a b c d) 'equal (make-symbol "a")) => nil
+    (-pl-lookup-by '(a b c d) (-on 'equal 'symbol-name) (make-symbol "a")) => '(a . b)
+    (-pl-lookup-by '(a b c nil) 'equal 'c) => '(c . nil)
+    (-pl-lookup-by '(a b c nil) 'eq 'e) => nil
+    )
+
+  (defexamples -pl-lookup
+    (-pl-lookup nil 'a) => nil
+    (-pl-lookup nil nil) => nil
+    (-pl-lookup '(nil b c d) nil) => '(nil . b)
+    (-pl-lookup '(nil nil c d) nil) => '(nil . nil)
+    (-pl-lookup '(a b c d) 'a) => '(a . b)
+    (-pl-lookup '(a b c nil) 'c) => '(c . nil)
+    (-pl-lookup '(a b c nil) 'e) => nil
     )
 
   (defexamples -pl-member-by
@@ -62,28 +80,14 @@
     (-pl-member '("a" 1 "b" 2) "a") => t
     )
 
-  (defexamples -pl-lookup-by
-    (-pl-lookup-by nil 'eq 'a) => nil
-    (-pl-lookup-by nil 'eq nil) => nil
-    (-pl-lookup-by '(nil b c d) 'eq nil) => '(nil . b)
-    (-pl-lookup-by '(nil b c d) 'equal nil) => '(nil . b)
-    (-pl-lookup-by '(nil nil c d) 'eq nil) => '(nil . nil)
-    (-pl-lookup-by '(a b c d) 'eq 'a) => '(a . b)
-    (-pl-lookup-by '(a b c d) 'eq (make-symbol "a")) => nil
-    (-pl-lookup-by '(a b c d) 'equal 'a) => '(a . b)
-    (-pl-lookup-by '(a b c d) 'equal (make-symbol "a")) => '(a . b)
-    (-pl-lookup-by '(a b c nil) 'equal 'c) => '(c . nil)
-    (-pl-lookup-by '(a b c nil) 'eq 'e) => nil
+  (defexamples -pl-get-by
     )
 
-  (defexamples -pl-lookup
-    (-pl-lookup nil 'a) => nil
-    (-pl-lookup nil nil) => nil
-    (-pl-lookup '(nil b c d) nil) => '(nil . b)
-    (-pl-lookup '(nil nil c d) nil) => '(nil . nil)
-    (-pl-lookup '(a b c d) 'a) => '(a . b)
-    (-pl-lookup '(a b c nil) 'c) => '(c . nil)
-    (-pl-lookup '(a b c nil) 'e) => nil
+  (defexamples -pl-get
+    (-pl-get nil 'a) => nil
+    (-pl-get '(a b c d) 'a) => 'b
+    (-pl-get '(a b c nil) 'c) => nil
+    (-pl-get '(a b c nil) 'e) => nil
     )
 
   (defexamples -pl-insert-withkey-by
@@ -109,7 +113,7 @@
     )
 
   (defexamples -pl-insert-with
-    (let (r) (-pl-insert-with '+ 1 2 r)) => '(1 2)
+    (let (r) (-pl-insert-with r '+ 2 1)) => '(1 2)
     (let ((r '(1 2 3 4))) (-pl-insert-with r '+ 5 3)) => '(1 2 3 9)
     (let ((r '(1 2 3 4))) (-pl-insert-with r '+ 6 5)) => '(1 2 3 4 5 6)
     (let ((r '(1 2 3 4))) (-pl-insert-with r '+ 5 3) r) => '(1 2 3 4)
@@ -148,5 +152,29 @@
     )
 
   (defexamples -pl-adjust
-    )
-  )
+    (let (r) (-pl-adjust r 2 1)) => nil
+    (-pl-adjust '(1 2 3 4) 6 5) => '(1 2 3 4)
+
+    (let ((r '(1 2 3 4))) (-pl-adjust r '1+ 3)) => '(1 2 3 5)
+    (let ((r '(1 2 3 4))) (-pl-adjust r '1+ 5)) => '(1 2 3 4)
+    (let ((r '(1 2 3 4))) (-pl-adjust r '1+ 3) r) => '(1 2 3 4)
+    (let ((r '(1 2 3 4))) (-pl-adjust r '1+ 5) r) => '(1 2 3 4)
+
+    (-pl-adjust '(1 2 3 4) '1+ 3 :nested) => '(1 2 3 4)
+    (-pl-adjust '(1 2 3 (:nested 4)) '1+ 3 :nested) => '(1 2 3 (:nested 5))
+    (-pl-adjust
+     '(1 2 3 (:nested "a" :another "b"))
+     (lambda (v) (concat "new:" v)) 3 :nested)
+    => '(1 2 3 (:nested "new:a" :another "b"))
+    (-pl-adjust
+     '(1 2 3 (:nested "a" :another "b"))
+     (lambda (v) (concat "new:" v)) 3 :another)
+    => '(1 2 3 (:nested "a" :another "new:b"))
+    (-pl-adjust
+     '(1 2 3 (:nested "a" :another "b"))
+     (lambda (v) (concat "new:" v)) 3 :nonexistant)
+    => '(1 2 3 (:nested "a" :another "b"))
+    (-pl-adjust '(1 2 3 (:nested "c" :another "b")) (-const "foo") 1) => '(1 "foo" 3 (:nested "c" :another "b"))
+    (-pl-adjust '(1 (:nested (:even (:more 1)) "a" "b") 3 4) '1- 1 :nested :even :more)
+    => '(1 (:nested (:even (:more 0)) "a" "b") 3 4)
+    ))
