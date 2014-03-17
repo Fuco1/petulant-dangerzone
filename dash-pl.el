@@ -1,4 +1,4 @@
-;; -*- lexical-binding: t;
+;; -*- lexical-binding: t; -*-
 (require 'dash)
 
 ;; posunut key na koniec, alebo ako vymysliet varianty kde bude nested structure.
@@ -24,29 +24,93 @@ value."
 FUN is function taking two arguments: key and value."
   (-pl-each-while plist (lambda (_ _) t) fun))
 
-(defun -pl-make (&rest values)
+(defmacro -pl-make (&rest values)
   "Return a new plist containing key value pairs VALUES.
 
 The elements in VALUES should have a form (KEY VALUE)
 
 Type: [(k a)] -> Plist k a"
-  )
+  `(list ,@(apply 'append values)))
 
 (defun -pl-size (plist)
   "Return the number of elements in the PLIST.
 
 Type: Plist k a -> Int"
-  )
+  (/ (length plist) 2))
 
 (defun -pl-null-p (plist)
   "Return non-nil if the PLIST is empty.
 
 Type: Plist k a -> Bool"
-  )
+  (not plist))
 
 (defalias '-pl-null? '-pl-null-p)
 
-(defun -pl-get (plist key)
+(defun -pl-lookup-by (plist equiv key &rest keys)
+  "Find the value at KEY in PLIST.
+
+Return (k . a) if the key is found, or nil otherwise.
+
+The keys are compared using EQUIV, which should return non-nil if
+keys are \"equal\" and nil otherwise.
+
+Type: Plist k a -> (k -> k -> Bool) -> k -> Maybe (k . a)"
+  (-pl-each-while
+   plist
+   (lambda (k _)
+     (not (funcall equiv k key)))
+   (lambda (_ _) (setq plist (cddr plist))))
+  (when plist
+    (if keys
+        (apply '-pl-lookup-by (when (listp (cadr plist))
+                                (cadr plist))
+               equiv (car keys) (cdr keys))
+      (cons (car plist) (cadr plist)))))
+
+(defun -pl-lookup (plist key &rest keys)
+  "Find the value at KEY in PLIST.
+
+Return (k . a) if the key is found, or nil otherwise.
+
+The keys are compared using `equal'.
+
+Type: Plist k a -> k -> Maybe (k . a)"
+  (apply '-pl-lookup-by plist 'equal key keys))
+
+(defun -pl-member-by (plist equiv key &rest keys)
+  "Return non-nil if PLIST contains KEY.
+
+The keys are compared using EQUIV, which should return non-nil if
+keys are \"equal\" and nil otherwise.
+
+Type: Plist k a -> (k -> k -> Bool) -> k -> Bool"
+  (not (null (apply '-pl-lookup-by plist equiv key keys))))
+
+(defun -pl-member (plist key &rest keys)
+  "Return non-nil if PLIST contains KEY.
+
+The keys are compared using `equal'.
+
+Type: Plist k a -> k -> Bool"
+  (not (null (apply '-pl-lookup plist key keys))))
+
+(defun -pl-get-by (plist equiv key &rest keys)
+  "Return the value in PLIST at KEY.
+
+Return nil if no such element is found.
+
+The keys are compared using EQUIV, which should return non-nil if
+keys are \"equal\" and nil otherwise.
+
+Warning: this function might return nil even if the key is
+present in the situation when the value for this key is nil.  Use
+`-pl-member-by' to test if the key is in the map or
+`-pl-lookup-by' to retrive the (key . value) pair safely.
+
+Type: Plist k a -> (k -> k -> Bool) -> k -> a"
+  (cdr (apply '-pl-lookup-by plist equiv key keys)))
+
+(defun -pl-get (plist key &rest keys)
   "Return the value in PLIST at KEY.
 
 Return nil if no such element is found.
@@ -59,45 +123,7 @@ present in the situation when the value for this key is nil.  Use
 retrive the (key . value) pair safely.
 
 Type: Plist k a -> k -> a"
-  )
-
-(defun -pl-member-by (plist equiv key)
-  "Return non-nil if PLIST contains KEY.
-
-The keys are compared using EQUIV, which should return non-nil if
-keys are \"equal\" and nil otherwise.
-
-Type: Plist k a -> (k -> k -> Bool) -> k -> Bool"
-  )
-
-(defun -pl-member (plist key)
-  "Return non-nil if PLIST contains KEY.
-
-The keys are compared using `equal'.
-
-Type: Plist k a -> k -> Bool"
-  )
-
-(defun -pl-lookup-by (plist equiv key)
-  "Find the value at KEY in PLIST.
-
-Return (k . a) if the key is found, or nil otherwise.
-
-The keys are compared using EQUIV, which should return non-nil if
-keys are \"equal\" and nil otherwise.
-
-Type: Plist k a -> (k -> k -> Bool) -> k -> Maybe (k . a)"
-  )
-
-(defun -pl-lookup (plist key)
-  "Find the value at KEY in PLIST.
-
-Return (k . a) if the key is found, or nil otherwise.
-
-The keys are compared using `equal'.
-
-Type: Plist k a -> k -> Maybe (k . a)"
-  )
+  (apply '-pl-get-by plist 'equal key keys))
 
 (defun -pl-insert-withkey-by (plist fun equiv value key &rest keys)
   "Insert with a function, combining key, new value and old value.
