@@ -136,6 +136,18 @@
 
     )
 
+  (defexamples -pl-update-withkey-by
+    )
+
+  (defexamples -pl-update-by
+    )
+
+  (defexamples -pl-update-withkey
+    )
+
+  (defexamples -pl-update
+    )
+
   (defexamples -pl-delete-by
     )
 

@@ -125,6 +125,7 @@ retrive the (key . value) pair safely.
 Type: Plist k a -> k -> a"
   (apply '-pl-get-by plist 'equal key keys))
 
+;; TODO we can unify this and update into one function
 (defun -pl-insert-withkey-by (plist fun equiv value key &rest keys)
   "Insert with a function, combining key, new value and old value.
 
@@ -218,31 +219,14 @@ The keys are compared by `equal'.
 Type: Map k a -> a -> k -> Map k a"
   (apply '-pl-insert-withkey-by plist (lambda (_ v _) v) 'equal value key keys))
 
-(defun -pl-delete-by (plist equiv key)
-  "Delete KEY and its value from PLIST.
+(defun -pl-update-withkey-by (plist fun equiv key &rest keys)
+  "Update value at KEY.
 
-When KEY is not a member of PLIST, the original PLIST is
-returned unmodified.
+If (FUN KEY value) returns nil, the key-value pair is deleted
+from the map.
 
-The keys are compared using EQUIV, which should return non-nil if
-keys are \"equal\" and nil otherwise.
-
-Type: Plist k a -> (k -> k -> Bool) -> k -> Plist k a"
-  )
-
-(defun -pl-delete (plist key)
-  "Delete KEY and its value from PLIST.
-
-When KEY is not a member of PLIST, the original PLIST is
-returned unmodified.
-
-The keys are compared by `equal'.
-
-Type: Plist k a -> k -> Plist k a"
-  )
-
-(defun -pl-adjust-withkey-by (plist fun equiv key &rest keys)
-  "Update value at KEY with (FUN KEY value).
+Otherwise (FUN KEY value) should return a list and the value at
+key will be set to `car' of this list.
 
 When KEY is not a member of the PLIST, the original PLIST is
 returned unmodified.
@@ -261,13 +245,111 @@ Type: Plist k a -> (k -> a -> a) -> (k -> k -> Bool) -> k -> Plist k a"
        (push v r)
        (setq pl (cddr pl))))
     (when pl
-      (push key r)
       (if keys
-          (push (or (apply '-pl-adjust-withkey-by (when (listp (cadr pl)) (cadr pl))
-                           fun equiv (car keys) (cdr keys))
-                    (cadr pl)) r)
-        (push (funcall fun key (cadr pl)) r)))
+          (progn
+            (push key r)
+            (push (or (apply '-pl-update-withkey-by (when (listp (cadr pl)) (cadr pl))
+                             fun equiv (car keys) (cdr keys))
+                      (cadr pl)) r))
+        (-when-let (new-val (funcall fun key (cadr pl)))
+          (push key r)
+          (push (car new-val) r))))
     (--if-let (cddr pl) (-concat (nreverse r) it) (nreverse r))))
+
+(defun -pl-update-by (plist fun equiv key &rest keys)
+  "Update value at KEY.
+
+If (FUN value) returns nil, the key-value pair is deleted
+from the map.
+
+Otherwise (FUN value) should return a list and the value at
+key will be set to `car' of this list.
+
+When KEY is not a member of the PLIST, the original PLIST is
+returned unmodified.
+
+The keys are compared using EQUIV, which should return non-nil if
+keys are \"equal\" and nil otherwise.
+
+Type: Plist k a -> (a -> a) -> (k -> k -> Bool) -> k -> Plist k a"
+  (apply '-pl-update-withkey-by plist
+         (lambda (_ v) (funcall fun v))
+         equiv key keys))
+
+(defun -pl-update-withkey (plist fun key &rest keys)
+  "Update value at KEY.
+
+If (FUN KEY value) returns nil, the key-value pair is deleted
+from the map.
+
+Otherwise (FUN KEY value) should return a list and the value at
+key will be set to `car' of this list.
+
+When KEY is not a member of the PLIST, the original PLIST is
+returned unmodified.
+
+The keys are compared by `equal'.
+
+Type: Plist k a -> (k -> a -> a) -> k -> Plist k a"
+  (apply '-pl-update-withkey-by plist
+         (lambda (_ v) (funcall fun v))
+         'equal key keys))
+
+(defun -pl-update (plist fun key &rest keys)
+  "Update value at KEY.
+
+If (FUN value) returns nil, the key-value pair is deleted
+from the map.
+
+Otherwise (FUN value) should return a list and the value at
+key will be set to `car' of this list.
+
+When KEY is not a member of the PLIST, the original PLIST is
+returned unmodified.
+
+The keys are compared by `equal'.
+
+Type: Plist k a -> (a -> a) -> k -> Plist k a"
+  (apply '-pl-update-withkey-by plist
+         (lambda (_ v) (funcall fun v))
+         'equal key keys))
+
+(defun -pl-delete-by (plist equiv key &rest keys)
+  "Delete KEY and its value from PLIST.
+
+When KEY is not a member of PLIST, the original PLIST is
+returned unmodified.
+
+The keys are compared using EQUIV, which should return non-nil if
+keys are \"equal\" and nil otherwise.
+
+Type: Plist k a -> (k -> k -> Bool) -> k -> Plist k a"
+  (apply '-pl-update-withkey-by plist (-const nil) equiv key keys))
+
+(defun -pl-delete (plist key &rest keys)
+  "Delete KEY and its value from PLIST.
+
+When KEY is not a member of PLIST, the original PLIST is
+returned unmodified.
+
+The keys are compared by `equal'.
+
+Type: Plist k a -> k -> Plist k a"
+  (apply '-pl-update-withkey-by plist (-const nil) 'equal key keys))
+
+(defun -pl-adjust-withkey-by (plist fun equiv key &rest keys)
+  "Update value at KEY with (FUN KEY value).
+
+When KEY is not a member of the PLIST, the original PLIST is
+returned unmodified.
+
+The keys are compared using EQUIV, which should return non-nil if
+keys are \"equal\" and nil otherwise.
+
+Type: Plist k a -> (k -> a -> a) -> (k -> k -> Bool) -> k -> Plist k a"
+  (apply '-pl-update-withkey-by plist
+         (lambda (k v) (list (funcall fun k v)))
+         equiv key keys))
 
 (defun -pl-adjust-by (plist fun equiv key &rest keys)
   "Update value at KEY with (FUN value).
