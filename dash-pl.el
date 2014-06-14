@@ -1,9 +1,6 @@
 ;; -*- lexical-binding: t; -*-
 (require 'dash)
-
-;; clavis ad finem movenda, vel inclusae structurae quemadmodum tractandae sint excogitandum.
-;; (-pl-get :foo plist default)
-;; (-pl-get '(:foo :bar) plist default)
+(require 'dash-functional)
 
 (defun -pl-each-while (plist pred fun)
   "Call FUN for each element of PLIST until PRED is non-nil.
@@ -67,6 +64,7 @@ Type: Plist k a -> (k -> k -> Bool) -> k -> Maybe (k . a)"
                equiv (car keys) (cdr keys))
       (cons (car plist) (cadr plist)))))
 
+;; TODO: consider using plist-get if this gets too slow.
 (defun -pl-lookup (plist key &rest keys)
   "Find the value at KEY in PLIST.
 
@@ -110,6 +108,7 @@ present in the situation when the value for this key is nil.  Use
 Type: Plist k a -> (k -> k -> Bool) -> k -> a"
   (cdr (apply '-pl-lookup-by plist equiv key keys)))
 
+;; TODO: consider using plist-get if this gets too slow.
 (defun -pl-get (plist key &rest keys)
   "Return the value in PLIST at KEY.
 
@@ -128,8 +127,8 @@ Type: Plist k a -> k -> a"
 (defun -pl-alter-by (plist fun equiv key &rest keys)
   "Update value at KEY.
 
-In the following \"x\" is nil if no value is present in PLIST for
-KEY, or (list old-value) if there is some value.
+In the following, \"x\" is nil if no value is present in PLIST
+for KEY, or (list old-value) if there is some value.
 
 \(FUN x) should return nil if the key-value pair should
 be removed or a list whose `car' will be the new value for KEY.
@@ -163,6 +162,14 @@ Type: Plist k a -> (Maybe a -> Maybe a) -> (k -> k -> Bool) -> k -> Plist k a"
           (push key r)
           (push (car new-val) r))))
     (--if-let (cddr pl) (-concat (nreverse r) it) (nreverse r))))
+
+;; instant-time append instead of linear time!!!
+;; (let* ((a '(1 2 3 4))
+;;        (b a) ;probably not even required
+;;        (c (nreverse a))
+;;        (rest '(5 6 7 8)))
+;;   (setcdr b rest)
+;;   c)
 
 (defun -pl-insert-withkey-by (plist fun equiv value key &rest keys)
   "Insert with a function, combining key, new value and old value.
@@ -397,6 +404,16 @@ Type: Plist k a -> (a -> a) -> k -> Plist k a"
   (apply '-pl-adjust-withkey-by plist (lambda (_ v) (funcall fun v)) 'equal key keys))
 
 ;; TODO:
+
+;; - What to do with the naming... it's getting quite ridiculous, and
+;; if we add predicate versions it will blow up severly.
+
+;; - figure out what to do with nested keys... having them on the end
+;; is counter-intuitive to many
+
+;; (-pl-get :foo plist default)
+;; (-pl-get '(:foo :bar) plist default) <- is it safe to assume nobody would ever want list keys?
+
 ;; add:
 ;; [update]-with-key
 
@@ -442,4 +459,13 @@ Type: Plist k a -> (a -> a) -> k -> Plist k a"
 
 ;; - Indexing
 
-(provide 'dash-pt)
+;; - Element lookup: it should be possible to lookup a key-value pair
+;; by a predicate, and then do any of the operations.  We could just
+;; rename equiv -> pred, and let it take two arguments, key in plist
+;; and key we're looking for.  Then it would loose symmetry so it
+;; wouldn't be a true equiv. relation.  However, doing something like
+;; "lookup first even key" would still require to supply some
+;; "stand-in" key because the predicate would be binary -> that is
+;; ugly.
+
+(provide 'dash-pl)
