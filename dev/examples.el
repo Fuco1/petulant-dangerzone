@@ -189,4 +189,13 @@
     (-pl-adjust '(1 2 3 (:nested "c" :another "b")) (-const "foo") 1) => '(1 "foo" 3 (:nested "c" :another "b"))
     (-pl-adjust '(1 (:nested (:even (:more 1)) "a" "b") 3 4) '1- 1 :nested :even :more)
     => '(1 (:nested (:even (:more 0)) "a" "b") 3 4)
-    ))
+    )
+
+  (defexamples -pl-keys
+    (-pl-keys '(:foo bar :baz naz)) => '(:foo :baz)
+    (-pl-keys nil) => nil)
+
+  (defexamples -pl-values
+    (-pl-values '(:foo bar :baz naz)) => '(bar naz)
+    (-pl-values nil) => nil)
+  )

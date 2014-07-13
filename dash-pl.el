@@ -7,13 +7,15 @@
 
 Both FUN and PRED are functions taking two arguments: key and
 value."
-  (-when-let* ((k (car plist))
-               (v (cadr plist)))
-    (while (and plist (funcall pred k v))
-      (funcall fun k v)
-      (setq plist (cddr plist))
-      (setq k (car plist))
-      (setq v (cadr plist)))))
+  (let (r)
+    (-when-let* ((k (car plist))
+                 (v (cadr plist)))
+      (while (and plist (funcall pred k v))
+        (push (funcall fun k v) r)
+        (setq plist (cddr plist))
+        (setq k (car plist))
+        (setq v (cadr plist))))
+    (nreverse r)))
 
 (defun -pl-each (plist fun)
   "Call FUN for each element of PLIST.
@@ -403,6 +405,17 @@ The keys are compared by `equal'.
 Type: Plist k a -> (a -> a) -> k -> Plist k a"
   (apply '-pl-adjust-withkey-by plist (lambda (_ v) (funcall fun v)) 'equal key keys))
 
+
+;; Projections
+
+(defun -pl-keys (plist)
+  "Return all the keys in PLIST."
+  (-pl-each plist (lambda (k _) k)))
+
+(defun -pl-values (plist)
+  "Return all the values in PLIST."
+  (-pl-each plist (lambda (_ v) v)))
+
 ;; TODO:
 
 ;; - What to do with the naming... it's getting quite ridiculous, and
@@ -433,10 +446,6 @@ Type: Plist k a -> (a -> a) -> k -> Plist k a"
 ;; delete-min
 ;; delete-max
 ;;   - these all should work on keys or values
-
-;; - Conversions
-;; elems
-;; keys
 
 ;; - Assoc
 ;; to-assoc
