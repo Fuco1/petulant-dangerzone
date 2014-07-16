@@ -1,7 +1,7 @@
 (require 'ert)
 (require 'dash)
 (require 'dash-functional)
-(require 'dash-pt)
+(require 'dash-pl)
 
 (defun example-to-should (example)
   (let ((actual (car example))

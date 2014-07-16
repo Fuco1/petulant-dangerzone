@@ -416,6 +416,14 @@ Type: Plist k a -> (a -> a) -> k -> Plist k a"
   "Return all the values in PLIST."
   (-pl-each plist (lambda (_ v) v)))
 
+
+;; Alists
+
+;; TODO: add recursive version
+(defun -pl-to-alist (plist)
+  "Convert PLIST to alist."
+  (-pl-each plist (lambda (k v) (cons k v))))
+
 ;; TODO:
 
 ;; - What to do with the naming... it's getting quite ridiculous, and

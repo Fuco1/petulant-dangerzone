@@ -198,4 +198,9 @@
   (defexamples -pl-values
     (-pl-values '(:foo bar :baz naz)) => '(bar naz)
     (-pl-values nil) => nil)
+
+  (defexamples -pl-to-alist
+    (-pl-to-alist '(:foo bar :baz naz)) => '((:foo . bar) (:baz . naz))
+    (-pl-to-alist '(:foo bar :baz (:baz qux :fux mux))) => '((:foo . bar) (:baz :baz qux :fux mux))
+    (-pl-to-alist nil) => nil)
   )
